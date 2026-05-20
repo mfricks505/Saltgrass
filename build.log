@@ -1,0 +1,24 @@
+
+> saltgrass@0.1.0 build
+> next build
+
+▲ Next.js 16.2.6 (Turbopack)
+- Environments: .env.local
+
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+  Creating an optimized production build ...
+✓ Compiled successfully in 27.9s
+  Running TypeScript ...
+Failed to type check.
+
+.next/dev/types/validator.ts:107:39
+Type error: File 'C:/Users/18507/Dropbox/My PC (LAPTOP-8RLNINLO)/Desktop/saltgrass/src/app/api/analyze-route/route.ts' is not a module.
+
+  [90m105 |[0m {
+  [90m106 |[0m   [36mtype[0m __IsExpected<[33mSpecific[0m [36mextends[0m [33mRouteHandlerConfig[0m<[32m"/api/analyze-route"[0m>> = [33mSpecific[0m
+[31m[1m>[0m [90m107 |[0m   [36mconst[0m handler = {} [36mas[0m [36mtypeof[0m [36mimport[0m([32m"../../../src/app/api/analyze-route/route.js"[0m)
+  [90m    |[0m                                       [31m[1m^[0m
+  [90m108 |[0m   [36mtype[0m __Check = __IsExpected<[36mtypeof[0m handler>
+  [90m109 |[0m   [90m// @ts-ignore[0m
+  [90m110 |[0m   [36mtype[0m __Unused = __Check
+Next.js build worker exited with code: 1 and signal: null
