@@ -1,20 +1,19 @@
+/* src/app/globals.css â€” Saltgrass */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --pine:     #1A2B1A;
-  --forest:   #1E2E1E;
-  --moss:     #2C4A2C;
-  --canopy:   #3D6B3D;
-  --sage:     #5C8A4A;
-  --palmetto: #7AAF5A;
-  --copper:   #C8924A;
+  --midnight: #0A0C08;
+  --forest:   #141F14;
+  --moss:     #1C2E1C;
+  --canopy:   #243824;
+  --sage:     #3D5C2A;
+  --copper:   #C8922A;
   --bone:     #E8DFC8;
-  --parchment:#C8BEA8;
-  --dust:     #887E6E;
-  --bark:     #2A2018;
-  --midnight: #141210;
+  --parchment:#B8AE98;
+  --dust:     #6B6358;
+  --bark:     #1A1208;
   --danger:   #C8452A;
 }
 
@@ -29,21 +28,23 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a { color: var(--palmetto); text-decoration: none; }
+h1, h2, h3, h4, h5, h6 { color: var(--bone); font-weight: 900; margin: 0 0 0.5em; }
+p { color: var(--parchment); margin: 0 0 1em; }
+a { color: var(--copper); text-decoration: none; }
 button { font-family: inherit; cursor: pointer; }
 img { display: block; }
 
 .card {
   background: var(--forest);
-  border-radius: 16px;
+  border-radius: 8px;
   border: 1px solid var(--canopy);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
 input, textarea, select {
   background: var(--bark);
   border: 1.5px solid var(--canopy);
-  border-radius: 10px;
+  border-radius: 6px;
   color: var(--bone);
   font-family: inherit;
   font-size: 14px;
@@ -51,13 +52,12 @@ input, textarea, select {
   outline: none;
   transition: border-color 0.15s;
   box-sizing: border-box;
-  width: 100%;
 }
 input::placeholder, textarea::placeholder { color: var(--dust); }
-input:focus, textarea:focus, select:focus { border-color: var(--palmetto); }
+input:focus, textarea:focus, select:focus { border-color: var(--copper); }
 select option { background: var(--forest); }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--forest); }
 ::-webkit-scrollbar-thumb { background: var(--canopy); border-radius: 3px; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -71,19 +71,17 @@ select option { background: var(--forest); }
   background: linear-gradient(90deg, var(--moss) 25%, var(--canopy) 50%, var(--moss) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .mobile-nav { display: none !important; }
 
 @media (max-width: 768px) {
   .mobile-nav { display: block !important; }
-  main { padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px)) !important; }
+  main { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
   .desktop-nav-label { display: none !important; }
   nav form { display: none !important; }
-  .sidebar-hide { display: none !important; }
 }
-
 @media (max-width: 480px) {
-  main { padding-left: 12px !important; padding-right: 12px !important; }
+  main { padding-left: 10px !important; padding-right: 10px !important; }
 }
