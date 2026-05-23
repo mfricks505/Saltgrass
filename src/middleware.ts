@@ -1,36 +1,15 @@
-// middleware.ts
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+// NO login required — everything is public
+// We will add protection back later once the app is fully built
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => req.cookies.getAll().map(({ name, value }) => ({ name, value })),
-        setAll: (cookies) => {
-          cookies.forEach(cookie => {
-            res.cookies.set(cookie.name, cookie.value, cookie.options as any)
-          })
-        },
-      },
-    }
-  );
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-  const { data: { session } } = await supabase.auth.getSession();
-
-  const protectedPaths = ['/analyzer', '/history'];
-
-  if (protectedPaths.some(path => req.nextUrl.pathname.startsWith(path)) && !session) {
-    return NextResponse.redirect(new URL('/auth/login', req.url));
-  }
-
-  return res;
+export function middleware(request: NextRequest) {
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/analyzer/:path*', '/history/:path*', '/report/:path*'],
-};
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
+}
