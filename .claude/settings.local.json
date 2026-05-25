@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(ls -la \"/mnt/c/Users/18507/.claude/projects/c--Users-18507-Dropbox-My-PC--LAPTOP-8RLNINLO--Desktop-saltgrass/\" 2>/dev/null | head -20)",
+      "Read(//mnt/c/Users/18507/.claude/projects/**)"
     ]
   }
 }
