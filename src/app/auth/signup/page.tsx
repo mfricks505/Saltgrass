@@ -143,12 +143,13 @@ export default function SignupPage() {
       </div>
 
       {showPhone && userId && (
-        <PhoneVerifyModal
-          userId={userId}
-          onVerified={handlePhoneVerified}
-          onSkip={handlePhoneSkip}
-        />
-      )}
+  <PhoneVerifyModal
+    userId={userId}
+    email={form.email}
+    onVerified={handlePhoneVerified}
+    onSkip={handlePhoneSkip}
+  />
+)}
     </>
   )
 }
