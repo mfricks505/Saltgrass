@@ -1,20 +1,31 @@
-/* src/app/globals.css â€” Saltgrass */
+/* src/app/globals.css â€” Saltgrass Brand */
+/* @import MUST come before @tailwind or it fails silently â€” this was the font bug */
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --midnight: #0A0C08;
-  --forest:   #141F14;
-  --moss:     #1C2E1C;
-  --canopy:   #243824;
-  --sage:     #3D5C2A;
-  --copper:   #C8922A;
-  --bone:     #E8DFC8;
-  --parchment:#B8AE98;
-  --dust:     #6B6358;
-  --bark:     #1A1208;
-  --danger:   #C8452A;
+  --background: #4A5240;
+  --surface:    #3D4535;
+  --card:       #333B2C;
+  --sun:        #E8DFC8;
+  --silhouette: #1A1E14;
+  --text:       #E8DFC8;
+  --sub:        #C4BFA6;   /* was #B8B49A â€” lighter, more readable */
+  --dust:       #9A9580;   /* was #8A866E â€” lighter, small labels now legible */
+  --border:     rgba(232,223,200,0.10);
+  --accent:     #D4982E;
+  --accent-dark:#A87020;
+  --danger:     #C8452A;
+  --go:         #7AE07A;
+  /* Blue â€” Rundown */
+  --blue-bg:    #0B1626;   /* deep navy page bg */
+  --blue-surf:  #14263F;   /* navy card surface */
+  --blue-card:  #1B2F4A;   /* slightly lighter navy */
+  --blue-acc:   #5BA3E0;   /* brighter blue accent */
+  --blue-line:  rgba(91,163,224,0.18);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -22,66 +33,88 @@ html { scroll-behavior: smooth; }
 
 body {
   margin: 0;
-  background: var(--midnight);
-  color: var(--bone);
-  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--background);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-h1, h2, h3, h4, h5, h6 { color: var(--bone); font-weight: 900; margin: 0 0 0.5em; }
-p { color: var(--parchment); margin: 0 0 1em; }
-a { color: var(--copper); text-decoration: none; }
-button { font-family: inherit; cursor: pointer; }
+/* Force Inter on all text elements so inline 'Inter' always resolves */
+body, p, span, div, a, button, input, textarea, select, li, td, th, label {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Headings use Oswald */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.5px;
+  margin: 0 0 0.5em;
+}
+
+p { color: var(--sub); margin: 0 0 1em; }
+a { color: var(--accent); text-decoration: none; }
+button { font-family: 'Inter', sans-serif; cursor: pointer; }
 img { display: block; }
 
-.card {
-  background: var(--forest);
-  border-radius: 8px;
-  border: 1px solid var(--canopy);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-}
+/* Oswald utility â€” anything using Impact/Arial Black inline still gets Oswald via this */
+.oswald { font-family: 'Oswald', sans-serif; }
 
+/* Cards */
+.card { background: var(--card); border-radius: 6px; border: 1px solid var(--border); }
+.surface { background: var(--surface); }
+.btn-primary, .accent { background: var(--accent); color: var(--silhouette); }
+
+/* Inputs */
 input, textarea, select {
-  background: var(--bark);
-  border: 1.5px solid var(--canopy);
-  border-radius: 6px;
-  color: var(--bone);
-  font-family: inherit;
-  font-size: 14px;
+  background: var(--silhouette);
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
   padding: 11px 14px;
   outline: none;
   transition: border-color 0.15s;
   box-sizing: border-box;
 }
 input::placeholder, textarea::placeholder { color: var(--dust); }
-input:focus, textarea:focus, select:focus { border-color: var(--copper); }
-select option { background: var(--forest); }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+select option { background: var(--surface); }
 
+/* Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--forest); }
-::-webkit-scrollbar-thumb { background: var(--canopy); border-radius: 3px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--card); border-radius: 3px; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
+/* Skeleton */
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
 .skeleton {
-  background: linear-gradient(90deg, var(--moss) 25%, var(--canopy) 50%, var(--moss) 75%);
+  background: linear-gradient(90deg, var(--surface) 25%, var(--card) 50%, var(--surface) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: 6px;
 }
 
+/* Mobile nav */
 .mobile-nav { display: none !important; }
+
+::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) {
+  animation-duration: 0.25s;
+  animation-timing-function: cubic-bezier(0.19, 1, 0.22, 1);
+}
 
 @media (max-width: 768px) {
   .mobile-nav { display: block !important; }
   main { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
   .desktop-nav-label { display: none !important; }
   nav form { display: none !important; }
+  .sidebar-hide { display: none !important; }
 }
 @media (max-width: 480px) {
-  main { padding-left: 10px !important; padding-right: 10px !important; }
+  main { padding-left: 12px !important; padding-right: 12px !important; }
 }

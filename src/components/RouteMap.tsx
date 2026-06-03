@@ -10,8 +10,8 @@ import 'leaflet-defaulticon-compatibility'
 import { BOAT_TYPES } from '@/lib/marine'
 
 const B = {
-  forest:'#141F14', moss:'#1C2E1C', copper:'#C8922A', bone:'#E8DFC8',
-  parchment:'#B8AE98', dust:'#6B6358',
+  forest:'#14263F', moss:'#1B2F4A', copper:'#C8922A', bone:'#E8DFC8',
+  parchment:'#C4BFA6', dust:'#9A9580',
   go:'#1A3A1A', caution:'#2A2210', nogo:'#2A1010',
   goText:'#7AE07A', cautionText:'#E0C06A', nogoText:'#E07A7A',
   goBorder:'#3D7A3D', cautionBorder:'#8A6A1A', nogoBorder:'#8A1A1A',
@@ -98,7 +98,7 @@ export default function RouteMap() {
       <div style={{ background:B.forest, borderRadius:8, padding:'12px 18px', marginBottom:8, border:`1px solid rgba(255,255,255,0.05)` }}>
         <div className="no-scrollbar" style={{ display:'flex', gap:6, overflowX:'auto' }}>
           {Object.entries(BOAT_TYPES).filter(([id]) => id !== 'atv_truck').map(([id, bt]) => (
-            <button key={id} onClick={() => setBoatType(id)} style={{ flexShrink:0, padding:'7px 13px', borderRadius:4, border:`2px solid ${boatType===id ? B.copper : 'rgba(255,255,255,0.08)'}`, background:boatType===id ? 'rgba(200,146,42,0.15)' : 'transparent', color:boatType===id ? B.copper : B.parchment, cursor:'pointer', ...O, fontSize:10, letterSpacing:1, whiteSpace:'nowrap' }}>
+            <button key={id} onClick={() => setBoatType(id)} style={{ flexShrink:0, padding:'7px 13px', borderRadius:4, border:`2px solid ${boatType===id ? B.copper : 'rgba(255,255,255,0.08)'}`, background:boatType===id ? 'rgba(200,146,42,0.15)' : 'transparent', color:boatType===id ? B.copper : B.parchment, cursor:'pointer', ...O, fontSize:12, letterSpacing:1, whiteSpace:'nowrap' }}>
               {bt.icon} {bt.label.toUpperCase()}
             </button>
           ))}
@@ -150,9 +150,9 @@ export default function RouteMap() {
               </div>
               {data.earliest_turns_bad && (
                 <div style={{ background:'rgba(0,0,0,0.25)', borderRadius:6, padding:'10px 14px', textAlign:'right' }}>
-                  <div style={{ ...O, fontSize:8, letterSpacing:2, color:B.cautionText, marginBottom:3 }}>WEATHER WINDOW</div>
+                  <div style={{ ...O, fontSize:11, letterSpacing:2, color:B.cautionText, marginBottom:3 }}>WEATHER WINDOW</div>
                   <div style={{ ...O, fontSize:15, color:B.bone }}>Back by {data.earliest_turns_bad}</div>
-                  <div style={{ fontSize:10, color:B.dust, marginTop:2 }}>conditions deteriorate</div>
+                  <div style={{ fontSize:12, color:B.dust, marginTop:2 }}>conditions deteriorate</div>
                 </div>
               )}
             </div>
@@ -166,9 +166,9 @@ export default function RouteMap() {
               </button>
             ) : (
               <div style={{ background:B.forest, borderRadius:8, padding:'14px 16px', marginBottom:8, border:`1px solid ${B.copper}44` }}>
-                <div style={{ ...O, fontSize:10, letterSpacing:2, color:B.copper, marginBottom:8 }}>NAME THIS RUN</div>
+                <div style={{ ...O, fontSize:12, letterSpacing:2, color:B.copper, marginBottom:8 }}>NAME THIS RUN</div>
                 <div style={{ display:'flex', gap:8 }}>
-                  <input value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="e.g. Bay flats run" onKeyDown={e => e.key==='Enter' && saveRoute()} style={{ flex:1, background:'#0A0C08', border:`1px solid rgba(255,255,255,0.15)`, borderRadius:5, color:B.bone, padding:'10px 12px', fontSize:14, outline:'none', fontFamily:'Inter,sans-serif' }} />
+                  <input value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="e.g. Bay flats run" onKeyDown={e => e.key==='Enter' && saveRoute()} style={{ flex:1, background:'#0B1626', border:`1px solid rgba(255,255,255,0.15)`, borderRadius:5, color:B.bone, padding:'10px 12px', fontSize:14, outline:'none', fontFamily:'Inter,sans-serif' }} />
                   <button onClick={saveRoute} disabled={!routeName.trim() || saving} style={{ background:B.copper, color:'#1A1208', border:'none', borderRadius:5, padding:'10px 18px', ...O, fontSize:12, letterSpacing:1, cursor:'pointer', opacity:saving?0.7:1 }}>
                     {saving ? '...' : 'SAVE'}
                   </button>
@@ -187,7 +187,7 @@ export default function RouteMap() {
 
           {/* Per-leg breakdown */}
           <div style={{ background:B.forest, borderRadius:8, padding:'16px 18px', marginBottom:10, border:`1px solid rgba(255,255,255,0.05)` }}>
-            <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.dust, marginBottom:12 }}>LEG-BY-LEG BREAKDOWN</div>
+            <div style={{ ...O, fontSize:11, letterSpacing:3, color:B.dust, marginBottom:12 }}>LEG-BY-LEG BREAKDOWN</div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {data.legs.map((leg: any, i: number) => {
                 const lv = VERDICT[leg.verdict as keyof typeof VERDICT]
@@ -200,7 +200,7 @@ export default function RouteMap() {
                         <span style={{ fontSize:18 }}>{leg.zoneIcon}</span>
                         <div>
                           <div style={{ ...O, fontSize:13, color:B.bone, letterSpacing:1 }}>
-                            {legName.toUpperCase()} <span style={{ color:B.dust, fontSize:10 }}>· {leg.zoneLabel} · {leg.distFromLaunchMi}mi out</span>
+                            {legName.toUpperCase()} <span style={{ color:B.dust, fontSize:12 }}>· {leg.zoneLabel} · {leg.distFromLaunchMi}mi out</span>
                           </div>
                         </div>
                       </div>
@@ -218,7 +218,7 @@ export default function RouteMap() {
             </div>
           </div>
 
-          <div style={{ fontSize:10, color:B.dust, textAlign:'center', padding:'0 0 14px' }}>
+          <div style={{ fontSize:12, color:B.dust, textAlign:'center', padding:'0 0 14px' }}>
             Conditions: Open-Meteo marine + wind · Warnings: NWS api.weather.gov · {data.moon?.emoji} {data.moon?.phase}
           </div>
         </>

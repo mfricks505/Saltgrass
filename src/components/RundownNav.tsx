@@ -6,7 +6,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const B = { forest:'#141F14', blue:'#4A8EC2', bone:'#E8DFC8', dust:'#6B6358' }
+const B = { forest:'#14263F', blue:'#5BA3E0', bone:'#E8DFC8', dust:'#6B6358' }
 const O = { fontFamily:'Impact, Arial Black, sans-serif' }
 
 const TOOLS = [
@@ -26,7 +26,7 @@ export default function RundownNav() {
       {TOOLS.map(t=>(
         <Link key={t.href} href={t.href} style={{ flexShrink:0, display:'flex', alignItems:'center', gap:5, padding:'7px 13px', borderRadius:6, textDecoration:'none', border:`1.5px solid ${active(t.href)?B.blue:'rgba(74,142,194,0.25)'}`, background:active(t.href)?'rgba(74,142,194,0.15)':'transparent', color:active(t.href)?B.blue:B.dust }}>
           <span style={{ fontSize:13 }}>{t.icon}</span>
-          <span style={{ ...O, fontSize:10, letterSpacing:1.5 }}>{t.label}</span>
+          <span style={{ ...O, fontSize:11, letterSpacing:1.5 }}>{t.label}</span>
         </Link>
       ))}
     </div>

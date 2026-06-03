@@ -7,8 +7,8 @@ import { useState, useEffect } from 'react'
 import { REGION_COORDS, BOAT_TYPES, ZONES, LAUNCH_POINTS, SPECIES_CONDITIONS, getSolunarTimes, getBestWindow, getInletWarning } from '@/lib/marine'
 
 const B = {
-  forest:'#141F14', moss:'#1C2E1C', copper:'#C8922A', bone:'#E8DFC8',
-  parchment:'#B8AE98', dust:'#6B6358',
+  forest:'#14263F', moss:'#1B2F4A', copper:'#C8922A', bone:'#E8DFC8',
+  parchment:'#C4BFA6', dust:'#9A9580',
   go:'#1A3A1A', caution:'#2A2210', nogo:'#2A1010',
   goText:'#7AE07A', cautionText:'#E0C06A', nogoText:'#E07A7A',
   goBorder:'#3D7A3D', cautionBorder:'#8A6A1A', nogoBorder:'#8A1A1A',
@@ -57,10 +57,10 @@ export default function RundownQuickCheck() {
     <div>
       {/* Region */}
       <div style={{ background:B.forest, borderRadius:8, padding:'14px 18px', marginBottom:8, border:`1px solid rgba(255,255,255,0.05)` }}>
-        <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.dust, marginBottom:10 }}>REGION</div>
+        <div style={{ ...O, fontSize:11, letterSpacing:3, color:B.dust, marginBottom:10 }}>REGION</div>
         <div className="no-scrollbar" style={{ display:'flex', gap:6, overflowX:'auto' }}>
           {Object.entries(REGION_COORDS).map(([id, r]) => (
-            <button key={id} onClick={() => { setRegion(id); setLaunchPoint('') }} style={{ flexShrink:0, padding:'8px 14px', borderRadius:4, border:`2px solid ${region===id ? B.copper : 'rgba(255,255,255,0.08)'}`, background:region===id ? 'rgba(200,146,42,0.15)' : 'transparent', color:region===id ? B.copper : B.parchment, cursor:'pointer', ...O, fontSize:10, letterSpacing:1, whiteSpace:'nowrap' }}>
+            <button key={id} onClick={() => { setRegion(id); setLaunchPoint('') }} style={{ flexShrink:0, padding:'8px 14px', borderRadius:4, border:`2px solid ${region===id ? B.copper : 'rgba(255,255,255,0.08)'}`, background:region===id ? 'rgba(200,146,42,0.15)' : 'transparent', color:region===id ? B.copper : B.parchment, cursor:'pointer', ...O, fontSize:12, letterSpacing:1, whiteSpace:'nowrap' }}>
               {r.icon} {r.label.toUpperCase()}
             </button>
           ))}
@@ -69,7 +69,7 @@ export default function RundownQuickCheck() {
 
       {/* Launch point */}
       <div style={{ background:B.forest, borderRadius:8, padding:'14px 18px', marginBottom:8, border:`1px solid rgba(255,255,255,0.05)` }}>
-        <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.dust, marginBottom:10 }}>LAUNCH POINT</div>
+        <div style={{ ...O, fontSize:11, letterSpacing:3, color:B.dust, marginBottom:10 }}>LAUNCH POINT</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:6 }}>
           <button onClick={() => setLaunchPoint('')} style={{ padding:'10px 12px', borderRadius:4, border:`2px solid ${!launchPoint ? B.copper : 'rgba(255,255,255,0.08)'}`, background:!launchPoint ? 'rgba(200,146,42,0.12)' : 'transparent', color:!launchPoint ? B.copper : B.parchment, cursor:'pointer', textAlign:'left', fontSize:12, fontFamily:'Inter,sans-serif' }}>
             📍 General {REGION_COORDS[region].label}
@@ -84,7 +84,7 @@ export default function RundownQuickCheck() {
 
       {/* Zone */}
       <div style={{ background:B.forest, borderRadius:8, padding:'14px 18px', marginBottom:8, border:`1px solid rgba(255,255,255,0.05)` }}>
-        <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.dust, marginBottom:10 }}>WHERE YOU'RE FISHING</div>
+        <div style={{ ...O, fontSize:11, letterSpacing:3, color:B.dust, marginBottom:10 }}>WHERE YOU'RE FISHING</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
           {(['inshore','nearshore','offshore'] as Zone[]).map(z => {
             const zc = ZONES[z]; const available = availableZones.includes(z)
@@ -92,7 +92,7 @@ export default function RundownQuickCheck() {
               <button key={z} onClick={() => available && setZone(z)} disabled={!available} style={{ padding:'12px 10px', borderRadius:4, border:`2px solid ${zone===z ? B.copper : available ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.03)'}`, background:zone===z ? 'rgba(200,146,42,0.12)' : 'transparent', color:zone===z ? B.copper : available ? B.parchment : B.dust, cursor:available ? 'pointer' : 'not-allowed', textAlign:'center', opacity:available ? 1 : 0.4 }}>
                 <div style={{ fontSize:20, marginBottom:4 }}>{zc.icon}</div>
                 <div style={{ ...O, fontSize:11, letterSpacing:1, marginBottom:2 }}>{zc.label.toUpperCase()}</div>
-                <div style={{ fontSize:9, color:B.dust, lineHeight:1.4 }}>{zc.miles}</div>
+                <div style={{ fontSize:11, color:B.dust, lineHeight:1.4 }}>{zc.miles}</div>
               </button>
             )
           })}
@@ -101,10 +101,10 @@ export default function RundownQuickCheck() {
 
       {/* Boat */}
       <div style={{ background:B.forest, borderRadius:8, padding:'14px 18px', marginBottom:10, border:`1px solid rgba(255,255,255,0.05)` }}>
-        <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.dust, marginBottom:10 }}>VESSEL</div>
+        <div style={{ ...O, fontSize:11, letterSpacing:3, color:B.dust, marginBottom:10 }}>VESSEL</div>
         <div className="no-scrollbar" style={{ display:'flex', gap:6, overflowX:'auto' }}>
           {Object.entries(BOAT_TYPES).map(([id, bt]) => (
-            <button key={id} onClick={() => setBoatType(id)} style={{ flexShrink:0, padding:'8px 14px', borderRadius:4, border:`2px solid ${boatType===id ? B.copper : 'rgba(255,255,255,0.08)'}`, background:boatType===id ? 'rgba(200,146,42,0.15)' : 'transparent', color:boatType===id ? B.copper : B.parchment, cursor:'pointer', ...O, fontSize:10, letterSpacing:1, whiteSpace:'nowrap' }}>
+            <button key={id} onClick={() => setBoatType(id)} style={{ flexShrink:0, padding:'8px 14px', borderRadius:4, border:`2px solid ${boatType===id ? B.copper : 'rgba(255,255,255,0.08)'}`, background:boatType===id ? 'rgba(200,146,42,0.15)' : 'transparent', color:boatType===id ? B.copper : B.parchment, cursor:'pointer', ...O, fontSize:12, letterSpacing:1, whiteSpace:'nowrap' }}>
               {bt.icon} {bt.label.toUpperCase()}
             </button>
           ))}
@@ -134,9 +134,9 @@ export default function RundownQuickCheck() {
               </div>
               {bestWindow && (
                 <div style={{ background:'rgba(200,146,42,0.15)', border:`1px solid ${B.copper}44`, borderRadius:6, padding:'10px 14px', textAlign:'right', flexShrink:0, marginLeft:12 }}>
-                  <div style={{ ...O, fontSize:8, letterSpacing:2, color:B.copper, marginBottom:3 }}>BEST WINDOW</div>
+                  <div style={{ ...O, fontSize:11, letterSpacing:2, color:B.copper, marginBottom:3 }}>BEST WINDOW</div>
                   <div style={{ ...O, fontSize:14, color:B.bone }}>{bestWindow.time}</div>
-                  <div style={{ fontSize:10, color:B.dust, marginTop:2 }}>{bestWindow.reason}</div>
+                  <div style={{ fontSize:12, color:B.dust, marginTop:2 }}>{bestWindow.reason}</div>
                 </div>
               )}
             </div>
@@ -153,9 +153,9 @@ export default function RundownQuickCheck() {
                 { label:'MOON', val:data.moon?.emoji ?? '–', sub:data.moon?.phase ?? '' },
               ].map(card => (
                 <div key={card.label} style={{ background:'rgba(0,0,0,0.2)', borderRadius:4, padding:'10px' }}>
-                  <div style={{ ...O, fontSize:8, letterSpacing:2, color:B.dust, marginBottom:4 }}>{card.label}</div>
+                  <div style={{ ...O, fontSize:11, letterSpacing:2, color:B.dust, marginBottom:4 }}>{card.label}</div>
                   <div style={{ ...O, fontSize:18, color:B.bone, lineHeight:1 }}>{card.val}</div>
-                  {card.sub && <div style={{ fontSize:10, color:B.dust, marginTop:3 }}>{card.sub}</div>}
+                  {card.sub && <div style={{ fontSize:12, color:B.dust, marginTop:3 }}>{card.sub}</div>}
                 </div>
               ))}
             </div>
@@ -164,7 +164,7 @@ export default function RundownQuickCheck() {
               <div style={{ marginTop:10, display:'flex', gap:6, flexWrap:'wrap' }}>
                 {data.tides.map((t: any, i: number) => (
                   <div key={i} style={{ background:'rgba(0,0,0,0.2)', borderRadius:4, padding:'7px 12px', fontSize:12, color:B.parchment }}>
-                    <span style={{ ...O, fontSize:9, letterSpacing:1, color:t.type==='H'?'#4A8EC2':B.copper, marginRight:6 }}>{t.type==='H'?'HIGH':'LOW'}</span>
+                    <span style={{ ...O, fontSize:11, letterSpacing:1, color:t.type==='H'?'#4A8EC2':B.copper, marginRight:6 }}>{t.type==='H'?'HIGH':'LOW'}</span>
                     {t.time} · {t.height}ft
                   </div>
                 ))}
@@ -182,7 +182,7 @@ export default function RundownQuickCheck() {
 
           {/* Species */}
           <div style={{ background:B.forest, borderRadius:8, padding:'14px 18px', marginBottom:10, border:`1px solid rgba(255,255,255,0.05)` }}>
-            <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.dust, marginBottom:10 }}>WHAT'S BITING — {ZONES[zone].label.toUpperCase()}</div>
+            <div style={{ ...O, fontSize:11, letterSpacing:3, color:B.dust, marginBottom:10 }}>WHAT'S BITING — {ZONES[zone].label.toUpperCase()}</div>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:species.length?12:0 }}>
               {zoneSpecies.map(s => (
                 <button key={s} onClick={() => setSpecies(sp => sp.includes(s) ? sp.filter(x=>x!==s) : [...sp, s])} style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${species.includes(s) ? B.copper : 'rgba(255,255,255,0.1)'}`, background:species.includes(s) ? 'rgba(200,146,42,0.15)' : 'transparent', color:species.includes(s) ? B.copper : B.parchment, cursor:'pointer', fontSize:12, fontFamily:'Inter,sans-serif' }}>
