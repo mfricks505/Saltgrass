@@ -3,7 +3,7 @@
 // GET:  fetch the user's catch log + detected patterns
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-server'
 import { getMoonPhase, getSolunarTimes, REGION_COORDS } from '@/lib/marine'
 
 // Pull current conditions for the region to snapshot with the catch
@@ -45,7 +45,7 @@ async function snapshotConditions(region: string, zone: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const supabase = await createClient()
+  const supabase = createAdminSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Sign in to log catches' }, { status: 401 })
 
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
-  const supabase = await createClient()
+  const supabase = createAdminSupabase()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ catches: [], patterns: [], stats: null })
 

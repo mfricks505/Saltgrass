@@ -194,10 +194,12 @@ export default function Nav() {
                       <div style={{ fontSize: 11, color: '#6B6358' }}>{user.email}</div>
                     </div>
                     {[
-                      { href: `/profile/${profile?.username}`, label: '👤 My Profile' },
-                      { href: '/bookmarks',                    label: '🔖 Saved' },
-                      { href: '/market/dashboard',             label: '🏕️ My Listings' },
-                      { href: '/crewup',                       label: '⛵ My Trips' },
+                      { href: `/profile/${profile?.username}`, label: 'My Profile' },
+{ href: '/slams',                        label: '🏆 My Slams' },
+{ href: '/log',                          label: '🎣 Catch Log' },
+{ href: '/bookmarks',                    label: 'Saved' },
+{ href: '/market/dashboard',             label: 'My Listings' },
+{ href: '/crewup',                       label: 'My Trips' },
                       { href: '/guides/dashboard',             label: '📊 Vendor Dashboard' },
                       { href: '/settings',                     label: '⚙️ Settings' },
                     ].map(item => (

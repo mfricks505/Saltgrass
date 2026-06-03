@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { SLAMS, LIFE_LIST_SPECIES, computeSlamProgress } from '@/lib/slams'
+import RundownNav from '@/components/RundownNav'
 
 const B = { midnight:'#0A0C08', forest:'#141F14', canopy:'#243824', copper:'#C8922A', bone:'#E8DFC8', parchment:'#B8AE98', dust:'#6B6358', go:'#7AE07A' }
 const O = { fontFamily:'Impact, Arial Black, sans-serif' }

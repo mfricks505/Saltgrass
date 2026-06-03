@@ -7,7 +7,7 @@
 // If the user has a catch log, the forecast is personalized. If not, it's generic.
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-server'
 import { getMoonPhase, getSolunarTimes, REGION_COORDS } from '@/lib/marine'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   // Pull the user's catch patterns (if signed in + has log)
   let userProfile: any = null
   try {
-    const supabase = await createClient()
+const supabase = createAdminSupabase()
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       let q = supabase.from('catch_log').select('*').eq('user_id', user.id)
