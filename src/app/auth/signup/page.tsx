@@ -3,7 +3,7 @@
 // Email-verified signup with a 6-digit OTP code. Stops casual bots/fake signups.
 // Flow: fill form → signUp → 6-digit code emailed → enter code → verifyOtp → profile created → in.
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
@@ -18,8 +18,7 @@ export default function SignupPage() {
   const [form, setForm] = useState({ email: '', password: '', username: '', full_name: '', home_region: '' })
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'form' | 'verify'>('form')
-  const [code, setCode] = useState(['', '', '', '', '', ''])
-  const inputs = useRef<(HTMLInputElement | null)[]>([])
+  const [code, setCode] = useState('')
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   // STEP 1 — create the auth user; Supabase emails a 6-digit code
@@ -43,8 +42,8 @@ export default function SignupPage() {
 
   // STEP 2 — verify the 6-digit code, then create the profile row
   async function verifyCode() {
-    const token = code.join('')
-    if (token.length !== 6) { toast.error('Enter the 6-digit code'); return }
+    const token = code.trim()
+    if (token.length < 6) { toast.error('Enter the code from your email'); return }
     setLoading(true)
 
     const { data, error } = await supabase.auth.verifyOtp({
@@ -71,20 +70,6 @@ export default function SignupPage() {
   async function resend() {
     const { error } = await supabase.auth.resend({ type: 'signup', email: form.email.trim() })
     if (error) toast.error(error.message); else toast.success('New code sent')
-  }
-
-  function setDigit(i: number, v: string) {
-    if (!/^\d?$/.test(v)) return
-    const next = [...code]; next[i] = v; setCode(next)
-    if (v && i < 5) inputs.current[i + 1]?.focus()
-  }
-  function onKey(i: number, e: React.KeyboardEvent) {
-    if (e.key === 'Backspace' && !code[i] && i > 0) inputs.current[i - 1]?.focus()
-  }
-  function onPaste(e: React.ClipboardEvent) {
-    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('')
-    if (digits.length) { const next = ['', '', '', '', '', '']; digits.forEach((d, i) => next[i] = d); setCode(next); inputs.current[Math.min(digits.length, 5)]?.focus() }
-    e.preventDefault()
   }
 
   const inputStyle = {
@@ -150,12 +135,16 @@ export default function SignupPage() {
               <div style={{ ...O, fontSize: 20, letterSpacing: 1, color: 'var(--sun)', marginBottom: 6 }}>CHECK YOUR EMAIL</div>
               <div style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 4 }}>We sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{form.email}</strong></div>
               <div style={{ fontSize: 12, color: 'var(--dust)', marginBottom: 20 }}>Enter it below to verify you're a real one.</div>
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }} onPaste={onPaste}>
-                {code.map((d, i) => (
-                  <input key={i} ref={el => { inputs.current[i] = el }} value={d} onChange={e => setDigit(i, e.target.value)} onKeyDown={e => onKey(i, e)}
-                    inputMode="numeric" maxLength={1} style={{ width: 44, height: 54, textAlign: 'center', fontSize: 24, ...O, background: 'rgba(26,30,20,0.6)', border: '1.5px solid rgba(232,223,200,0.18)', borderRadius: 6, color: 'var(--sun)', outline: 'none' }} />
-                ))}
-              </div>
+              <input
+                value={code}
+                onChange={e => setCode(e.target.value.replace(/\s/g, ''))}
+                onKeyDown={e => { if (e.key === 'Enter') verifyCode() }}
+                inputMode="numeric"
+                autoFocus
+                placeholder="Enter code"
+                style={{ width: '100%', height: 56, textAlign: 'center', fontSize: 28, letterSpacing: 8, ...O, background: 'rgba(26,30,20,0.6)', border: '1.5px solid rgba(232,223,200,0.18)', borderRadius: 8, color: 'var(--sun)', outline: 'none', marginBottom: 20, boxSizing: 'border-box' }}
+              />
+
               <button onClick={verifyCode} disabled={loading} style={{ ...O, width: '100%', background: 'var(--accent)', color: 'var(--silhouette)', border: 'none', borderRadius: 4, padding: '13px', fontSize: 14, fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
                 {loading ? 'VERIFYING...' : 'CONFIRM'}
               </button>
