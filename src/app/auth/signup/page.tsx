@@ -1,155 +1,169 @@
 'use client'
 // src/app/auth/signup/page.tsx
+// Email-verified signup with a 6-digit OTP code. Stops casual bots/fake signups.
+// Flow: fill form → signUp → 6-digit code emailed → enter code → verifyOtp → profile created → in.
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { REGIONS } from '@/lib/types'
 import toast from 'react-hot-toast'
-import PhoneVerifyModal from '@/components/PhoneVerifyModal'
 
-const O = { fontFamily:"'Oswald', sans-serif" }
+const O = { fontFamily: "'Oswald', sans-serif" }
 
 export default function SignupPage() {
   const router = useRouter()
   const supabase = createClient()
-  const [form,     setForm]     = useState({ email:'', password:'', username:'', full_name:'', home_region:'' })
-  const [loading,  setLoading]  = useState(false)
-  const [userId,   setUserId]   = useState<string|null>(null)
-  const [showPhone,setShowPhone] = useState(false)
-  const set = (k:string,v:string) => setForm(f=>({...f,[k]:v}))
+  const [form, setForm] = useState({ email: '', password: '', username: '', full_name: '', home_region: '' })
+  const [loading, setLoading] = useState(false)
+  const [step, setStep] = useState<'form' | 'verify'>('form')
+  const [code, setCode] = useState(['', '', '', '', '', ''])
+  const inputs = useRef<(HTMLInputElement | null)[]>([])
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
+  // STEP 1 — create the auth user; Supabase emails a 6-digit code
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.username.trim())  { toast.error('Username required'); return }
-    if (form.password.length<6) { toast.error('Password must be 6+ characters'); return }
+    if (!form.username.trim()) { toast.error('Username is required'); return }
+    if (form.password.length < 6) { toast.error('Password must be at least 6 characters'); return }
     setLoading(true)
 
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: form.email, password: form.password,
+    const { data, error } = await supabase.auth.signUp({
+      email: form.email.trim(),
+      password: form.password,
+      options: { data: { username: form.username.toLowerCase().trim(), full_name: form.full_name.trim(), home_region: form.home_region } },
     })
-    if (authError) { toast.error(authError.message); setLoading(false); return }
-    if (!authData.user) { toast.error('Signup failed — try again'); setLoading(false); return }
+    if (error) { toast.error(error.message); setLoading(false); return }
+    // If email confirmation is ON, there's no session yet — go to code entry.
+    setStep('verify')
+    setLoading(false)
+    toast.success('Code sent — check your email')
+  }
 
-    const { error: profileError } = await supabase.from('profiles').upsert({
-      id: authData.user.id,
-      username: form.username.toLowerCase().trim(),
-      full_name: form.full_name.trim() || null,
-      home_region: form.home_region || null,
-      level: 1,
+  // STEP 2 — verify the 6-digit code, then create the profile row
+  async function verifyCode() {
+    const token = code.join('')
+    if (token.length !== 6) { toast.error('Enter the 6-digit code'); return }
+    setLoading(true)
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: form.email.trim(),
+      token,
+      type: 'signup',
     })
-    if (profileError) {
-      toast.error(profileError.message.includes('unique') ? 'Username already taken' : profileError.message)
-      setLoading(false); return
+    if (error) { toast.error(error.message || 'Invalid or expired code'); setLoading(false); return }
+
+    const user = data.user
+    if (user) {
+      await supabase.from('profiles').upsert({
+        id: user.id,
+        username: form.username.toLowerCase().trim(),
+        full_name: form.full_name.trim() || null,
+        home_region: form.home_region || null,
+      })
     }
-
-    // Account created — now prompt phone verify
-    setUserId(authData.user.id)
-    setShowPhone(true)
+    toast.success('Welcome to Saltgrass!')
+    router.push('/')
     setLoading(false)
   }
 
-  function handlePhoneVerified() {
-    setShowPhone(false)
-    toast.success('Phone verified! Level 2 unlocked.')
-    router.push('/')
+  async function resend() {
+    const { error } = await supabase.auth.resend({ type: 'signup', email: form.email.trim() })
+    if (error) toast.error(error.message); else toast.success('New code sent')
   }
 
-  function handlePhoneSkip() {
-    setShowPhone(false)
-    toast.success('Welcome to Saltgrass!')
-    router.push('/')
+  function setDigit(i: number, v: string) {
+    if (!/^\d?$/.test(v)) return
+    const next = [...code]; next[i] = v; setCode(next)
+    if (v && i < 5) inputs.current[i + 1]?.focus()
+  }
+  function onKey(i: number, e: React.KeyboardEvent) {
+    if (e.key === 'Backspace' && !code[i] && i > 0) inputs.current[i - 1]?.focus()
+  }
+  function onPaste(e: React.ClipboardEvent) {
+    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('')
+    if (digits.length) { const next = ['', '', '', '', '', '']; digits.forEach((d, i) => next[i] = d); setCode(next); inputs.current[Math.min(digits.length, 5)]?.focus() }
+    e.preventDefault()
   }
 
   const inputStyle = {
-    background: 'rgba(26,30,20,0.6)',
-    border: '1.5px solid rgba(232,223,200,0.12)',
-    borderRadius: 4, color: 'var(--text)',
-    fontSize: 15, padding: '11px 14px',
-    width: '100%', outline: 'none',
-    boxSizing: 'border-box' as const,
-    fontFamily: 'Inter, sans-serif',
-    marginBottom: 14,
+    background: 'rgba(26,30,20,0.6)', border: '1.5px solid rgba(232,223,200,0.12)',
+    borderRadius: 4, color: 'var(--text)', fontSize: 15, padding: '11px 14px',
+    width: '100%', outline: 'none', boxSizing: 'border-box' as const,
+    fontFamily: 'Inter, sans-serif', marginBottom: 14,
   }
 
   return (
-    <>
-      <div style={{ maxWidth: 480, margin: '40px auto 0' }}>
-        <div style={{ background:'var(--surface)', borderRadius:6, border:'1px solid var(--border)', boxShadow:'0 8px 40px rgba(0,0,0,0.4)', overflow:'hidden' }}>
+    <div style={{ maxWidth: 480, margin: '40px auto 0' }}>
+      <div style={{ background: 'var(--surface)', borderRadius: 6, border: '1px solid var(--border)', boxShadow: '0 8px 40px rgba(0,0,0,0.4)', overflow: 'hidden' }}>
 
-          <div style={{ background:'var(--card)', padding:'24px', textAlign:'center', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ ...O, fontWeight:700, fontSize:28, letterSpacing:'4px', color:'var(--sun)', textTransform:'uppercase', marginBottom:4 }}>SALTGRASS</div>
-            <div style={{ fontSize:13, color:'var(--sub)' }}>Join Florida's outdoors community</div>
-          </div>
+        <div style={{ background: 'var(--card)', padding: '24px', textAlign: 'center', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ ...O, fontWeight: 700, fontSize: 28, letterSpacing: '4px', color: 'var(--sun)', textTransform: 'uppercase', marginBottom: 4 }}>SALTGRASS</div>
+          <div style={{ fontSize: 13, color: 'var(--sub)' }}>Join Florida's outdoors community</div>
+        </div>
 
-          {/* Level preview */}
-          <div style={{ background:'var(--card)', borderTop:'none', padding:'12px 24px', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ display:'flex', gap:8, justifyContent:'center' }}>
-              {[
-                { level:'L1', label:'Browse & Read', color:'#8A866E',  active:true  },
-                { level:'L2', label:'Post & Message', color:'#D4982E', active:false },
-                { level:'L3', label:'Buy · Sell · Book', color:'#7AE07A', active:false },
-              ].map(l => (
-                <div key={l.level} style={{ flex:1, textAlign:'center', padding:'8px 6px', borderRadius:4, background: l.active ? 'rgba(212,152,46,0.08)' : 'transparent', border:`1px solid ${l.active ? 'rgba(212,152,46,0.2)' : 'rgba(232,223,200,0.06)'}` }}>
-                  <div style={{ ...O, fontSize:10, letterSpacing:1, color:l.active?l.color:'var(--dust)', marginBottom:2 }}>{l.level}</div>
-                  <div style={{ fontSize:9, color:'var(--dust)', lineHeight:1.4 }}>{l.label}</div>
+        <div style={{ padding: '24px 28px' }}>
+          {step === 'form' ? (
+            <>
+              <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column' }}>
+                {[
+                  { key: 'full_name', label: 'FULL NAME',  placeholder: 'Wild Bill',      type: 'text',     required: false },
+                  { key: 'username',  label: 'USERNAME',   placeholder: 'riverroller88',  type: 'text',     required: true  },
+                  { key: 'email',     label: 'EMAIL',      placeholder: 'you@email.com',  type: 'email',    required: true  },
+                  { key: 'password',  label: 'PASSWORD',   placeholder: '6+ characters',  type: 'password', required: true  },
+                ].map(({ key, label, placeholder, type, required }) => (
+                  <div key={key}>
+                    <label style={{ ...O, fontSize: 10, fontWeight: 500, letterSpacing: '2px', color: 'var(--dust)', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                      {label} {required && <span style={{ color: 'var(--accent)' }}>*</span>}
+                    </label>
+                    <input type={type} value={(form as any)[key]} onChange={e => set(key, e.target.value)} placeholder={placeholder} required={required} style={inputStyle} />
+                  </div>
+                ))}
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ ...O, fontSize: 10, fontWeight: 500, letterSpacing: '2px', color: 'var(--dust)', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>HOME REGION</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
+                    {REGIONS.map(r => (
+                      <button key={r.id} type="button" onClick={() => set('home_region', r.id)} style={{
+                        padding: '10px 12px', borderRadius: 4, cursor: 'pointer',
+                        border: `1.5px solid ${form.home_region === r.id ? 'var(--accent)' : 'rgba(232,223,200,0.12)'}`,
+                        background: form.home_region === r.id ? 'rgba(212,152,46,0.15)' : 'transparent',
+                        color: form.home_region === r.id ? 'var(--accent)' : 'var(--sub)',
+                        display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left', fontFamily: 'Inter, sans-serif', fontSize: 12,
+                      }}>
+                        <span style={{ fontSize: 16 }}>{r.icon}</span><span>{r.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div style={{ fontSize:10, color:'var(--dust)', textAlign:'center', marginTop:8, lineHeight:1.6 }}>
-              Signing up unlocks Level 1. Phone verify = Level 2. $2.99 ID check = Level 3.
-            </div>
-          </div>
-
-          <div style={{ padding:'22px 28px' }}>
-            <form onSubmit={handleSignup} style={{ display:'flex', flexDirection:'column' }}>
-              {[
-                { key:'full_name', label:'FULL NAME',  placeholder:'Wild Bill',      type:'text',     required:false },
-                { key:'username',  label:'USERNAME',   placeholder:'riverroller88',  type:'text',     required:true  },
-                { key:'email',     label:'EMAIL',      placeholder:'you@email.com',  type:'email',    required:true  },
-                { key:'password',  label:'PASSWORD',   placeholder:'6+ characters',  type:'password', required:true  },
-              ].map(({ key, label, placeholder, type, required }) => (
-                <div key={key}>
-                  <label style={{ ...O, fontSize:10, letterSpacing:'2px', color:'var(--dust)', textTransform:'uppercase', display:'block', marginBottom:6 }}>
-                    {label} {required && <span style={{ color:'var(--accent)' }}>*</span>}
-                  </label>
-                  <input type={type} value={(form as any)[key]} onChange={e=>set(key,e.target.value)} placeholder={placeholder} required={required} style={inputStyle} />
-                </div>
-              ))}
-
-              <div style={{ marginBottom:20 }}>
-                <label style={{ ...O, fontSize:10, letterSpacing:'2px', color:'var(--dust)', textTransform:'uppercase', display:'block', marginBottom:10 }}>HOME REGION</label>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:7 }}>
-                  {REGIONS.map(r => (
-                    <button key={r.id} type="button" onClick={() => set('home_region', r.id)} style={{ padding:'9px 12px', borderRadius:4, cursor:'pointer', border:`1.5px solid ${form.home_region===r.id?'var(--accent)':'rgba(232,223,200,0.12)'}`, background:form.home_region===r.id?'rgba(212,152,46,0.15)':'transparent', color:form.home_region===r.id?'var(--accent)':'var(--sub)', display:'flex', alignItems:'center', gap:8, fontFamily:'Inter,sans-serif', fontSize:12 }}>
-                      <span style={{ fontSize:16 }}>{r.icon}</span><span>{r.label}</span>
-                    </button>
-                  ))}
-                </div>
+                <button type="submit" disabled={loading} style={{ ...O, background: 'var(--accent)', color: 'var(--silhouette)', border: 'none', borderRadius: 4, padding: '13px', fontSize: 14, fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+                  {loading ? 'SENDING CODE...' : 'CREATE ACCOUNT'}
+                </button>
+              </form>
+              <div style={{ textAlign: 'center', marginTop: 18, fontSize: 13, color: 'var(--dust)' }}>
+                Already have an account? <Link href="/auth/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign In</Link>
               </div>
-
-              <button type="submit" disabled={loading} style={{ ...O, background:'var(--accent)', color:'var(--silhouette)', border:'none', borderRadius:4, padding:'13px', fontSize:14, fontWeight:600, letterSpacing:'2px', textTransform:'uppercase', cursor:'pointer', opacity:loading?0.7:1 }}>
-                {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT — FREE'}
+            </>
+          ) : (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 38, marginBottom: 10 }}>📬</div>
+              <div style={{ ...O, fontSize: 20, letterSpacing: 1, color: 'var(--sun)', marginBottom: 6 }}>CHECK YOUR EMAIL</div>
+              <div style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 4 }}>We sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{form.email}</strong></div>
+              <div style={{ fontSize: 12, color: 'var(--dust)', marginBottom: 20 }}>Enter it below to verify you're a real one.</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 20 }} onPaste={onPaste}>
+                {code.map((d, i) => (
+                  <input key={i} ref={el => { inputs.current[i] = el }} value={d} onChange={e => setDigit(i, e.target.value)} onKeyDown={e => onKey(i, e)}
+                    inputMode="numeric" maxLength={1} style={{ width: 44, height: 54, textAlign: 'center', fontSize: 24, ...O, background: 'rgba(26,30,20,0.6)', border: '1.5px solid rgba(232,223,200,0.18)', borderRadius: 6, color: 'var(--sun)', outline: 'none' }} />
+                ))}
+              </div>
+              <button onClick={verifyCode} disabled={loading} style={{ ...O, width: '100%', background: 'var(--accent)', color: 'var(--silhouette)', border: 'none', borderRadius: 4, padding: '13px', fontSize: 14, fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase', cursor: 'pointer', opacity: loading ? 0.7 : 1 }}>
+                {loading ? 'VERIFYING...' : 'CONFIRM'}
               </button>
-            </form>
-
-            <div style={{ textAlign:'center', marginTop:16, fontSize:13, color:'var(--dust)' }}>
-              Already have an account?{' '}
-              <Link href="/auth/login" style={{ color:'var(--accent)', fontWeight:600 }}>Sign In</Link>
+              <button onClick={resend} style={{ background: 'none', border: 'none', color: 'var(--dust)', fontSize: 13, cursor: 'pointer', marginTop: 14 }}>← Resend code</button>
             </div>
-          </div>
+          )}
         </div>
       </div>
-
-      {showPhone && userId && (
-  <PhoneVerifyModal
-    userId={userId}
-    email={form.email}
-    onVerified={handlePhoneVerified}
-    onSkip={handlePhoneSkip}
-  />
-)}
-    </>
+    </div>
   )
 }
