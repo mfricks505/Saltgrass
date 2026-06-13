@@ -133,7 +133,7 @@ export default function SignupPage() {
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 38, marginBottom: 10 }}>📬</div>
               <div style={{ ...O, fontSize: 20, letterSpacing: 1, color: 'var(--sun)', marginBottom: 6 }}>CHECK YOUR EMAIL</div>
-              <div style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 4 }}>We sent a 6-digit code to <strong style={{ color: 'var(--text)' }}>{form.email}</strong></div>
+              <div style={{ fontSize: 13, color: 'var(--sub)', marginBottom: 4 }}>We sent a code to <strong style={{ color: 'var(--text)' }}>{form.email}</strong></div>
               <div style={{ fontSize: 12, color: 'var(--dust)', marginBottom: 20 }}>Enter it below to verify you're a real one.</div>
               <input
                 value={code}
