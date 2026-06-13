@@ -1,318 +1,300 @@
 ﻿'use client'
 // src/app/admin/page.tsx
-// Admin dashboard — everything you need to manage Saltgrass in one screen
-// Protected: only accessible to your email address
-// Shows: pending reports, guide verifications, payment failures, flagged content
+// Private admin dashboard — metrics, guide approvals, feedback, moderation, spend tracking.
+// Gated to ADMIN_EMAIL. Reads live from Supabase; degrades gracefully if a table is empty.
 
 import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase'
 
-const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? 'mfricks505@gmail.com'
+const ADMIN_EMAIL = 'mfricks@gmail.com'   // <-- your admin email
+const O = { fontFamily: 'Oswald, sans-serif' }
+const B = { surface:'var(--surface)', card:'var(--card)', sun:'var(--sun)', sub:'var(--sub)', dust:'var(--dust)', accent:'var(--accent)', border:'var(--border)', go:'#7AE07A', warn:'#E0C06A', bad:'#E07A7A' }
 
-const B = {
-  bg:'#4A5240', surf:'#3D4535', card:'#333B2C',
-  sun:'#E8DFC8', sil:'#1A1E14', sub:'#B8B49A',
-  dust:'#8A866E', border:'rgba(232,223,200,0.10)',
-  accent:'#D4982E', danger:'#C8452A', go:'#7AE07A',
-}
-const O = { fontFamily:"'Oswald', sans-serif" }
+type Tab = 'overview' | 'guides' | 'feedback' | 'reports'
 
-type Tab = 'overview' | 'reports' | 'guides' | 'payments' | 'feedback'
-
-export default function AdminPage() {
-  const router   = useRouter()
+export default function AdminDashboard() {
   const supabase = createClient()
-  const [tab,     setTab]     = useState<Tab>('overview')
+  const router = useRouter()
+  const [authed, setAuthed] = useState<boolean | null>(null)
+  const [tab, setTab] = useState<Tab>('overview')
   const [loading, setLoading] = useState(true)
-  const [stats,   setStats]   = useState<any>({})
+
+  // metrics
+  const [m, setM] = useState<any>({})
+  const [pendingGuides, setPendingGuides] = useState<any[]>([])
+  const [feedback, setFeedback] = useState<any[]>([])
   const [reports, setReports] = useState<any[]>([])
-  const [guides,  setGuides]  = useState<any[]>([])
-  const [payments,setPayments]= useState<any[]>([])
-  const [feedback,setFeedback]= useState<any[]>([])
+  const [spend, setSpend] = useState('')
+  const [regionBreakdown, setRegionBreakdown] = useState<any[]>([])
+  const [sourceBreakdown, setSourceBreakdown] = useState<any[]>([])
 
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session || session.user.email !== ADMIN_EMAIL) {
-        router.push('/')
-        return
-      }
-      loadAll()
-    })
-  }, [])
+  useEffect(() => { init() }, [])
+  async function init() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user || user.email !== ADMIN_EMAIL) { setAuthed(false); return }
+    setAuthed(true)
+    await loadAll(user.id)
+  }
 
-  async function loadAll() {
+  // safe count helper — returns 0 if table missing/empty
+  async function count(table: string, filters?: (q: any) => any) {
+    try {
+      let q = supabase.from(table).select('*', { count: 'exact', head: true })
+      if (filters) q = filters(q)
+      const { count } = await q
+      return count ?? 0
+    } catch { return 0 }
+  }
+
+  async function loadAll(uid: string) {
     setLoading(true)
+    const weekAgo = new Date(Date.now() - 7 * 864e5).toISOString()
 
-    const [statsRes, reportsRes, guidesRes, payRes, feedRes] = await Promise.all([
-      // Overview stats
-      Promise.all([
-        supabase.from('profiles').select('*', { count:'exact', head:true }),
-        supabase.from('profiles').select('*', { count:'exact', head:true }).eq('phone_verified', true),
-        supabase.from('profiles').select('*', { count:'exact', head:true }).eq('id_verified', true),
-        supabase.from('guides').select('*', { count:'exact', head:true }).eq('is_verified', true),
-        supabase.from('reports').select('*', { count:'exact', head:true }).eq('status', 'pending'),
-        supabase.from('guides').select('*', { count:'exact', head:true }).eq('verification_status', 'manual_review'),
-        supabase.from('feedback').select('*', { count:'exact', head:true }),
-      ]),
-      // Pending reports
-      supabase.from('reports').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(50),
-      // Guides needing manual review
-      supabase.from('guides').select('*').in('verification_status', ['manual_review', 'license_issue']).order('created_at', { ascending: false }).limit(50),
-      // Payment failures
-      supabase.from('payment_events').select('*').eq('event_type', 'payment_failed').order('created_at', { ascending: false }).limit(20),
-      // Recent feedback
-      supabase.from('feedback').select('*').order('created_at', { ascending: false }).limit(100),
+    const [
+      totalUsers, newUsers, totalGuides, payingGuides, totalListings, activeListings,
+      totalBookings, totalTrips, totalCatches, totalPosts,
+    ] = await Promise.all([
+      count('profiles'),
+      count('profiles', q => q.gte('created_at', weekAgo)),
+      count('guides'),
+      count('guides', q => q.eq('plan', 'pro')),  // approximate "paying"
+      count('listings'),
+      count('listings', q => q.eq('status', 'active')),
+      count('guide_bookings'),
+      count('trips'),
+      count('catch_log'),
+      count('posts'),
     ])
 
-    const [total, l2, l3, verifiedGuides, pendingReports, manualGuides, feedbackCount] = statsRes
-    setStats({
-      total_users: total.count ?? 0,
-      level2_users: l2.count ?? 0,
-      level3_users: l3.count ?? 0,
-      verified_guides: verifiedGuides.count ?? 0,
-      pending_reports: pendingReports.count ?? 0,
-      manual_guide_reviews: manualGuides.count ?? 0,
-      total_feedback: feedbackCount.count ?? 0,
+    // revenue + commission from bookings (best-effort)
+    let commission = 0, bookingValue = 0
+    try {
+      const { data: b } = await supabase.from('guide_bookings').select('total, platform_fee, status')
+      if (b) { bookingValue = b.reduce((s, x) => s + (x.total ?? 0), 0); commission = b.reduce((s, x) => s + (x.platform_fee ?? 0), 0) }
+    } catch {}
+
+    setM({
+      totalUsers, newUsers, totalGuides, payingGuides, totalListings, activeListings,
+      totalBookings, totalTrips, totalCatches, totalPosts,
+      bookingValue, commission,
     })
-    setReports(reportsRes.data ?? [])
-    setGuides(guidesRes.data ?? [])
-    setPayments(payRes.data ?? [])
-    setFeedback(feedRes.data ?? [])
+
+    // pending guide approvals
+    try {
+      const { data } = await supabase.from('guides').select('*')
+        .or('is_active.eq.false,verification_status.in.(submitted,manual_review,license_issue,identity_pending)')
+        .order('created_at', { ascending: false })
+      setPendingGuides(data ?? [])
+    } catch {}
+
+    // feedback
+    try {
+      const { data } = await supabase.from('feedback').select('*').order('created_at', { ascending: false }).limit(50)
+      setFeedback(data ?? [])
+    } catch {}
+
+    // reports (moderation)
+    try {
+      const { data } = await supabase.from('reports').select('*').eq('status', 'open').order('created_at', { ascending: false })
+      setReports(data ?? [])
+    } catch {}
+
+    // region breakdown
+    try {
+      const { data } = await supabase.from('profiles').select('home_region')
+      if (data) {
+        const counts: Record<string, number> = {}
+        data.forEach((p: any) => { const r = p.home_region || 'unknown'; counts[r] = (counts[r] || 0) + 1 })
+        setRegionBreakdown(Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([region, n]) => ({ region, n })))
+      }
+    } catch {}
+
+    // utm source breakdown (if you store signup_source on profiles)
+    try {
+      const { data } = await supabase.from('profiles').select('signup_source')
+      if (data) {
+        const counts: Record<string, number> = {}
+        data.forEach((p: any) => { const s = p.signup_source || 'direct'; counts[s] = (counts[s] || 0) + 1 })
+        setSourceBreakdown(Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([source, n]) => ({ source, n })))
+      }
+    } catch {}
+
     setLoading(false)
   }
 
-  async function dismissReport(id: string) {
-    await supabase.from('reports').update({ status: 'dismissed' }).eq('id', id)
-    setReports(r => r.filter(x => x.id !== id))
-  }
-
-  async function actionReport(id: string, targetType: string, targetId: string) {
-    // Hide the content
-    if (targetType === 'post') await supabase.from('posts').update({ is_hidden: true }).eq('id', targetId)
-    if (targetType === 'listing') await supabase.from('listings').update({ is_active: false }).eq('id', targetId)
-    // Mark resolved
-    await supabase.from('reports').update({ status: 'actioned', auto_actioned: false }).eq('id', id)
-    setReports(r => r.filter(x => x.id !== id))
-  }
-
   async function approveGuide(id: string) {
-    await supabase.from('guides').update({ is_verified: true, verification_status: 'verified', verified_at: new Date().toISOString() }).eq('id', id)
-    setGuides(g => g.filter(x => x.id !== id))
+    await supabase.from('guides').update({ is_active: true, is_verified: true, verification_status: 'verified', verified_at: new Date().toISOString() }).eq('id', id)
+    init()
+  }
+  async function rejectGuide(id: string) {
+    await supabase.from('guides').update({ is_active: false, verification_status: 'rejected' }).eq('id', id)
+    init()
+  }
+  async function resolveReport(id: string, status: string) {
+    await supabase.from('reports').update({ status }).eq('id', id)
+    init()
   }
 
-  async function rejectGuide(id: string, reason: string) {
-    await supabase.from('guides').update({ verification_status: 'rejected', verification_errors: [reason] }).eq('id', id)
-    setGuides(g => g.filter(x => x.id !== id))
-  }
-
-  if (loading) return (
-    <div style={{ textAlign:'center', padding:'60px', color:'var(--sub)' }}>
-      <div style={{ ...O, fontSize:14, letterSpacing:3, color:'var(--accent)' }}>LOADING ADMIN...</div>
+  if (authed === null) return <div style={{ ...O, color: B.dust, letterSpacing: 2, padding: 40, textAlign: 'center' }}>CHECKING ACCESS...</div>
+  if (authed === false) return (
+    <div style={{ textAlign: 'center', padding: 60 }}>
+      <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+      <div style={{ ...O, fontSize: 18, color: B.sun, letterSpacing: 1 }}>ADMIN ONLY</div>
+      <Link href="/" style={{ color: B.accent, fontSize: 13, textDecoration: 'none', marginTop: 12, display: 'inline-block' }}>← Home</Link>
     </div>
   )
 
-  const TABS: { id: Tab; label: string; badge?: number }[] = [
-    { id:'overview',  label:'OVERVIEW' },
-    { id:'reports',   label:'REPORTS',  badge: reports.length },
-    { id:'guides',    label:'GUIDES',   badge: guides.length },
-    { id:'payments',  label:'PAYMENTS', badge: payments.length },
-    { id:'feedback',  label:'FEEDBACK', badge: feedback.length },
-  ]
+  // CAC calc
+  const spendNum = parseFloat(spend) || 0
+  const newPaying = m.payingGuides || 0
+  const costPerGuide = newPaying > 0 && spendNum > 0 ? (spendNum / newPaying) : null
+  const guideLTV = 240  // ~$19.99/mo annualized; adjust as you learn real retention
+  const ltvCac = costPerGuide ? (guideLTV / costPerGuide) : null
 
   return (
-    <div style={{ maxWidth:1000, margin:'0 auto' }}>
+    <div style={{ maxWidth: 880, margin: '0 auto' }}>
+      <div style={{ ...O, fontSize: 26, letterSpacing: 1, color: B.sun, margin: '8px 0 4px' }}>ADMIN</div>
+      <div style={{ fontSize: 12, color: B.dust, marginBottom: 16 }}>Saltgrass control room</div>
 
-      <div style={{ marginBottom:20 }}>
-        <div style={{ ...O, fontSize:10, letterSpacing:4, color:B.accent, marginBottom:4 }}>SALTGRASS</div>
-        <h1 style={{ ...O, fontSize:28, color:B.sun, margin:'0 0 4px' }}>ADMIN DASHBOARD</h1>
-        <div style={{ fontSize:12, color:B.dust }}>Private — {ADMIN_EMAIL}</div>
-      </div>
-
-      {/* Tab nav */}
-      <div style={{ display:'flex', gap:6, marginBottom:16, borderBottom:`1px solid ${B.border}`, paddingBottom:0 }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ ...O, fontSize:11, letterSpacing:2, padding:'9px 16px', background:'transparent', border:'none', borderBottom: tab===t.id ? `3px solid ${B.accent}` : '3px solid transparent', color: tab===t.id ? B.accent : B.dust, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
-            {t.label}
-            {t.badge && t.badge > 0 ? <span style={{ background:B.danger, color:'#fff', borderRadius:'50%', width:18, height:18, fontSize:10, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center' }}>{t.badge > 9?'9+':t.badge}</span> : null}
-          </button>
+      {/* tabs */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        {([
+          ['overview', 'OVERVIEW'],
+          ['guides', `GUIDE APPROVALS (${pendingGuides.length})`],
+          ['feedback', `FEEDBACK (${feedback.length})`],
+          ['reports', `REPORTS (${reports.length})`],
+        ] as [Tab, string][]).map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: '8px 14px', borderRadius: 6, ...O, fontSize: 10, letterSpacing: 1, cursor: 'pointer', border: `2px solid ${tab===t?B.accent:B.border}`, background: tab===t?'rgba(212,152,46,0.12)':'transparent', color: tab===t?B.accent:B.sub }}>{label}</button>
         ))}
       </div>
 
-      {/* OVERVIEW */}
-      {tab==='overview' && (
-        <div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:16 }}>
-            {[
-              { label:'TOTAL USERS',       val:stats.total_users,         note:'all signups' },
-              { label:'PHONE VERIFIED',     val:stats.level2_users,        note:'Level 2' },
-              { label:'ID VERIFIED',        val:stats.level3_users,        note:'Level 3 — paying' },
-              { label:'ACTIVE GUIDES',      val:stats.verified_guides,     note:'verified' },
-              { label:'PENDING REPORTS',    val:stats.pending_reports,     note:'need action', alert:stats.pending_reports>0 },
-              { label:'GUIDE REVIEWS',      val:stats.manual_guide_reviews,note:'manual needed', alert:stats.manual_guide_reviews>0 },
-              { label:'FEEDBACK ITEMS',     val:stats.total_feedback,      note:'unread' },
-              { label:'CONVERSION RATE',    val: stats.total_users > 0 ? Math.round((stats.level3_users/stats.total_users)*100)+'%' : '0%', note:'L1→L3' },
-            ].map(s => (
-              <div key={s.label} style={{ background:B.card, borderRadius:6, padding:'14px 16px', border:`1px solid ${s.alert ? B.danger+'66' : B.border}` }}>
-                <div style={{ ...O, fontSize:9, letterSpacing:3, color:s.alert?B.danger:B.dust, marginBottom:6 }}>{s.label}</div>
-                <div style={{ ...O, fontSize:28, color:s.alert?B.danger:B.accent, lineHeight:1, marginBottom:3 }}>{s.val}</div>
-                <div style={{ fontSize:10, color:B.dust }}>{s.note}</div>
-              </div>
-            ))}
-          </div>
+      {loading ? <div style={{ ...O, color: B.dust, letterSpacing: 2, padding: 40, textAlign: 'center' }}>LOADING...</div> : (
+        <>
+          {tab === 'overview' && (
+            <>
+              <Grid>
+                <Metric label="USERS" value={m.totalUsers} sub={`+${m.newUsers} this week`} />
+                <Metric label="GUIDES" value={m.totalGuides} sub={`${m.payingGuides} on Pro`} />
+                <Metric label="LISTINGS" value={m.activeListings} sub={`${m.totalListings} all-time`} />
+                <Metric label="BOOKINGS" value={m.totalBookings} sub={`$${((m.bookingValue||0)/100).toFixed(0)} value`} />
+                <Metric label="YOUR COMMISSION" value={`$${((m.commission||0)/100).toFixed(0)}`} sub="from bookings" />
+                <Metric label="TRIPS" value={m.totalTrips} sub="Crew Up" />
+                <Metric label="CATCHES LOGGED" value={m.totalCatches} sub="engagement" />
+                <Metric label="BOARD POSTS" value={m.totalPosts} sub="engagement" />
+              </Grid>
 
-          <div style={{ background:B.card, borderRadius:6, padding:'14px 16px', border:`1px solid ${B.border}` }}>
-            <div style={{ ...O, fontSize:9, letterSpacing:3, color:B.accent, marginBottom:10 }}>QUICK ACTIONS</div>
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setTab('reports')} style={{ ...O, fontSize:10, letterSpacing:2, background:reports.length>0?B.danger:B.surf, color:B.sun, border:'none', borderRadius:4, padding:'9px 16px', cursor:'pointer' }}>
-                {reports.length} PENDING REPORTS
-              </button>
-              <button onClick={() => setTab('guides')} style={{ ...O, fontSize:10, letterSpacing:2, background:guides.length>0?B.accent:B.surf, color:B.sil, border:'none', borderRadius:4, padding:'9px 16px', cursor:'pointer' }}>
-                {guides.length} GUIDE REVIEWS
-              </button>
-              <button onClick={() => loadAll()} style={{ ...O, fontSize:10, letterSpacing:2, background:B.surf, color:B.sun, border:`1px solid ${B.border}`, borderRadius:4, padding:'9px 16px', cursor:'pointer' }}>
-                ↺ REFRESH
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              {/* CAC tracker */}
+              <Panel title="COST PER GUIDE (enter your ad spend)">
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <input value={spend} onChange={e => setSpend(e.target.value)} placeholder="Total ad spend $" inputMode="decimal" style={{ background: 'var(--silhouette)', border: '1px solid var(--border)', borderRadius: 6, color: B.sun, padding: '10px 12px', fontSize: 14, outline: 'none', width: 160, fontFamily: 'Inter,sans-serif' }} />
+                  <div style={{ fontSize: 13, color: B.sub }}>
+                    {costPerGuide ? <>≈ <strong style={{ color: B.accent }}>${costPerGuide.toFixed(0)}</strong> per paying guide · LTV:CAC <strong style={{ color: ltvCac && ltvCac >= 3 ? B.go : B.warn }}>{ltvCac?.toFixed(1)}:1</strong></> : 'Enter spend to calculate (needs paying guides)'}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, color: B.dust, marginTop: 8 }}>Healthy is LTV:CAC ≥ 3:1. Guide LTV assumed ~$240/yr — adjust as you learn real retention.</div>
+              </Panel>
 
-      {/* REPORTS */}
-      {tab==='reports' && (
-        <div>
-          {reports.length === 0 ? (
-            <div style={{ background:B.card, borderRadius:6, padding:'40px', textAlign:'center', border:`1px solid ${B.border}` }}>
-              <div style={{ fontSize:36, marginBottom:10 }}>✅</div>
-              <div style={{ ...O, fontSize:14, letterSpacing:2, color:B.sun }}>NO PENDING REPORTS</div>
-            </div>
-          ) : reports.map(r => (
-            <div key={r.id} style={{ background:B.card, borderRadius:6, border:`1px solid ${B.border}`, padding:'14px 16px', marginBottom:8 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-                <div>
-                  <span style={{ ...O, fontSize:10, letterSpacing:2, color:B.danger, marginRight:10 }}>{r.target_type.toUpperCase()}</span>
-                  <span style={{ ...O, fontSize:10, letterSpacing:1, color:B.accent }}>{r.reason.toUpperCase()}</span>
-                </div>
-                <div style={{ fontSize:10, color:B.dust }}>{new Date(r.created_at).toLocaleDateString()}</div>
+              {/* breakdowns */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <Panel title="USERS BY REGION">
+                  {regionBreakdown.length === 0 ? <Empty /> : regionBreakdown.map(r => (
+                    <Row key={r.region} l={r.region} v={r.n} />
+                  ))}
+                </Panel>
+                <Panel title="SIGNUP SOURCE (UTM)">
+                  {sourceBreakdown.length === 0 ? <div style={{ fontSize: 11, color: B.dust }}>No source data yet. Add a `signup_source` column to profiles + capture utm_source at signup to populate this.</div> : sourceBreakdown.map(s => (
+                    <Row key={s.source} l={s.source} v={s.n} />
+                  ))}
+                </Panel>
               </div>
-              {r.detail && <div style={{ fontSize:12, color:B.sub, lineHeight:1.6, marginBottom:10 }}>"{r.detail}"</div>}
-              <div style={{ fontSize:11, color:B.dust, marginBottom:10 }}>Target ID: {r.target_id}</div>
-              <div style={{ display:'flex', gap:8 }}>
-                <button onClick={() => actionReport(r.id, r.target_type, r.target_id)} style={{ ...O, fontSize:10, letterSpacing:1, background:B.danger, color:'#fff', border:'none', borderRadius:4, padding:'7px 14px', cursor:'pointer' }}>
-                  REMOVE CONTENT
-                </button>
-                <button onClick={() => dismissReport(r.id)} style={{ ...O, fontSize:10, letterSpacing:1, background:B.surf, color:B.sub, border:`1px solid ${B.border}`, borderRadius:4, padding:'7px 14px', cursor:'pointer' }}>
-                  DISMISS
-                </button>
-                <a href={`/post/${r.target_id}`} target="_blank" rel="noopener noreferrer" style={{ ...O, fontSize:10, letterSpacing:1, color:B.accent, border:`1px solid ${B.accent}44`, borderRadius:4, padding:'7px 14px', textDecoration:'none' }}>
-                  VIEW →
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            </>
+          )}
 
-      {/* GUIDES */}
-      {tab==='guides' && (
-        <div>
-          {guides.length === 0 ? (
-            <div style={{ background:B.card, borderRadius:6, padding:'40px', textAlign:'center', border:`1px solid ${B.border}` }}>
-              <div style={{ fontSize:36, marginBottom:10 }}>✅</div>
-              <div style={{ ...O, fontSize:14, letterSpacing:2, color:B.sun }}>NO GUIDES PENDING REVIEW</div>
-            </div>
-          ) : guides.map(g => (
-            <div key={g.id} style={{ background:B.card, borderRadius:6, border:`1px solid ${B.border}`, padding:'16px 18px', marginBottom:10 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
-                <div>
-                  <div style={{ ...O, fontSize:14, color:B.sun, marginBottom:3 }}>{g.business_name}</div>
-                  <div style={{ fontSize:11, color:B.dust }}>{g.name} · {g.email} · {g.city}</div>
-                </div>
-                <span style={{ ...O, fontSize:9, letterSpacing:2, color:B.danger, background:`${B.danger}22`, borderRadius:3, padding:'2px 8px' }}>
-                  {g.verification_status?.replace('_',' ').toUpperCase()}
-                </span>
-              </div>
-              {g.fwc_license_number && (
-                <div style={{ background:B.surf, borderRadius:4, padding:'8px 12px', marginBottom:8, fontSize:11, color:B.sub }}>
-                  FWC License: <strong style={{ color:g.fwc_license_valid?B.go:'#E07A7A' }}>{g.fwc_license_number}</strong>
-                  {g.fwc_license_valid ? ' ✓ Valid' : ' ✗ Could not verify'}
-                  {g.fwc_license_expires && ` · Expires ${g.fwc_license_expires}`}
-                </div>
-              )}
-              {g.uscg_license_number && (
-                <div style={{ background:B.surf, borderRadius:4, padding:'8px 12px', marginBottom:8, fontSize:11, color:B.sub }}>
-                  USCG Credential: <strong style={{ color:g.uscg_license_valid?B.go:'#E07A7A' }}>{g.uscg_license_number}</strong>
-                  {g.uscg_license_valid ? ' ✓ Valid' : ' ✗ Could not verify'}
-                  {g.uscg_license_type && ` · ${g.uscg_license_type}`}
-                </div>
-              )}
-              {g.verification_errors?.length > 0 && (
-                <div style={{ background:'rgba(200,69,42,0.1)', border:`1px solid ${B.danger}44`, borderRadius:4, padding:'8px 12px', marginBottom:8, fontSize:11, color:'#E07A7A' }}>
-                  {g.verification_errors.join(' · ')}
-                </div>
-              )}
-              <div style={{ display:'flex', gap:8 }}>
-                <button onClick={() => approveGuide(g.id)} style={{ ...O, fontSize:10, letterSpacing:1, background:'rgba(61,122,61,0.3)', color:B.go, border:`1px solid rgba(122,224,122,0.3)`, borderRadius:4, padding:'8px 16px', cursor:'pointer' }}>
-                  ✓ APPROVE & VERIFY
-                </button>
-                <button onClick={() => rejectGuide(g.id, 'License could not be verified after manual review')} style={{ ...O, fontSize:10, letterSpacing:1, background:'rgba(200,69,42,0.2)', color:'#E07A7A', border:`1px solid ${B.danger}44`, borderRadius:4, padding:'8px 16px', cursor:'pointer' }}>
-                  ✗ REJECT
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* PAYMENTS */}
-      {tab==='payments' && (
-        <div>
-          {payments.length === 0 ? (
-            <div style={{ background:B.card, borderRadius:6, padding:'40px', textAlign:'center', border:`1px solid ${B.border}` }}>
-              <div style={{ fontSize:36, marginBottom:10 }}>✅</div>
-              <div style={{ ...O, fontSize:14, letterSpacing:2, color:B.sun }}>NO PAYMENT FAILURES</div>
-            </div>
-          ) : payments.map(p => (
-            <div key={p.id} style={{ background:B.card, borderRadius:6, border:`1px solid ${B.danger}44`, padding:'14px 16px', marginBottom:8 }}>
-              <div style={{ display:'flex', justifyContent:'space-between' }}>
-                <div style={{ ...O, fontSize:10, letterSpacing:2, color:B.danger }}>{p.event_type.replace('_',' ').toUpperCase()}</div>
-                <div style={{ fontSize:10, color:B.dust }}>{new Date(p.created_at).toLocaleDateString()}</div>
-              </div>
-              <div style={{ fontSize:12, color:B.sub, marginTop:6 }}>
-                Amount: ${((p.amount ?? 0)/100).toFixed(2)} · User: {p.user_id?.slice(0,8)}...
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* FEEDBACK */}
-      {tab==='feedback' && (
-        <div>
-          {/* Group by type */}
-          {['bug','idea','love','other'].map(type => {
-            const items = feedback.filter(f => f.type === type)
-            if (items.length === 0) return null
-            const icons: Record<string,string> = { bug:'🐛', idea:'💡', love:'❤️', other:'💬' }
-            return (
-              <div key={type} style={{ marginBottom:16 }}>
-                <div style={{ ...O, fontSize:10, letterSpacing:3, color:B.accent, marginBottom:8 }}>
-                  {icons[type]} {type.toUpperCase()} ({items.length})
-                </div>
-                {items.map(f => (
-                  <div key={f.id} style={{ background:B.card, borderRadius:6, border:`1px solid ${B.border}`, padding:'12px 14px', marginBottom:6 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
-                      <span style={{ fontSize:10, color:B.dust }}>Page: {f.page}</span>
-                      <span style={{ fontSize:10, color:B.dust }}>{new Date(f.created_at).toLocaleDateString()}</span>
+          {tab === 'guides' && (
+            <Panel title={`GUIDES AWAITING APPROVAL (${pendingGuides.length})`}>
+              {pendingGuides.length === 0 ? <div style={{ fontSize: 13, color: B.dust }}>No guides pending. 🎣</div> :
+                pendingGuides.map(g => (
+                  <div key={g.id} style={{ borderBottom: '1px solid var(--border)', padding: '14px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ ...O, fontSize: 15, color: B.sun }}>{g.business_name} <span style={{ fontSize: 11, color: B.dust }}>· {g.name}</span></div>
+                        <div style={{ fontSize: 12, color: B.sub, marginTop: 4 }}>{g.category} · {g.region}{g.city?` · ${g.city}`:''} · {g.plan}</div>
+                        <div style={{ fontSize: 12, color: B.dust, marginTop: 4 }}>
+                          Status: <strong style={{ color: g.verification_status==='identity_pending'?B.go:B.warn }}>{g.verification_status || 'submitted'}</strong>
+                          {g.fwc_license_number ? ` · FWC: ${g.fwc_license_number} ${g.fwc_verified?'✓':'⚠'}` : ''}
+                          {g.uscg_credential_number ? ` · USCG: ${g.uscg_credential_number} ${g.uscg_verified?'✓':'⚠'}` : ''}
+                        </div>
+                        {g.bio && <div style={{ fontSize: 12, color: B.sub, marginTop: 6, lineHeight: 1.5 }}>{g.bio.slice(0, 160)}</div>}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => approveGuide(g.id)} style={{ ...O, background: 'rgba(122,224,122,0.12)', color: B.go, border: `1px solid ${B.go}44`, borderRadius: 5, padding: '8px 14px', fontSize: 11, letterSpacing: 1, cursor: 'pointer' }}>APPROVE</button>
+                        <button onClick={() => rejectGuide(g.id)} style={{ background: 'transparent', color: B.dust, border: '1px solid var(--border)', borderRadius: 5, padding: '8px 14px', fontSize: 11, cursor: 'pointer' }}>Reject</button>
+                      </div>
                     </div>
-                    <div style={{ fontSize:13, color:B.sub, lineHeight:1.7 }}>{f.message}</div>
                   </div>
                 ))}
-              </div>
-            )
-          })}
-        </div>
+            </Panel>
+          )}
+
+          {tab === 'feedback' && (
+            <Panel title={`FEEDBACK (${feedback.length})`}>
+              {feedback.length === 0 ? <Empty /> :
+                feedback.map((fb, i) => (
+                  <div key={fb.id || i} style={{ borderBottom: '1px solid var(--border)', padding: '12px 0' }}>
+                    <div style={{ fontSize: 14, color: B.sun, lineHeight: 1.5 }}>{fb.message || fb.body || fb.text || JSON.stringify(fb)}</div>
+                    <div style={{ fontSize: 11, color: B.dust, marginTop: 4 }}>{fb.created_at ? new Date(fb.created_at).toLocaleString() : ''}{fb.email ? ` · ${fb.email}` : ''}</div>
+                  </div>
+                ))}
+            </Panel>
+          )}
+
+          {tab === 'reports' && (
+            <Panel title={`OPEN REPORTS (${reports.length})`}>
+              {reports.length === 0 ? <div style={{ fontSize: 13, color: B.dust }}>No open reports. Clean house. ✓</div> :
+                reports.map(r => (
+                  <div key={r.id} style={{ borderBottom: '1px solid var(--border)', padding: '12px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 14, color: B.sun }}>{r.item_type} · <span style={{ color: B.bad }}>{r.reason}</span></div>
+                      {r.detail && <div style={{ fontSize: 12, color: B.sub, marginTop: 4 }}>{r.detail}</div>}
+                      <div style={{ fontSize: 11, color: B.dust, marginTop: 4 }}>item: {r.item_id} · {new Date(r.created_at).toLocaleString()}</div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                      <button onClick={() => resolveReport(r.id, 'actioned')} style={{ ...O, background: 'rgba(224,122,122,0.12)', color: B.bad, border: `1px solid ${B.bad}44`, borderRadius: 5, padding: '7px 12px', fontSize: 10, letterSpacing: 1, cursor: 'pointer' }}>ACTIONED</button>
+                      <button onClick={() => resolveReport(r.id, 'dismissed')} style={{ background: 'transparent', color: B.dust, border: '1px solid var(--border)', borderRadius: 5, padding: '7px 12px', fontSize: 10, cursor: 'pointer' }}>Dismiss</button>
+                    </div>
+                  </div>
+                ))}
+            </Panel>
+          )}
+        </>
       )}
     </div>
   )
 }
+
+function Grid({ children }: { children: any }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 10, marginBottom: 14 }}>{children}</div>
+}
+function Metric({ label, value, sub }: { label: string; value: any; sub?: string }) {
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
+      <div style={{ ...O, fontSize: 9, letterSpacing: 2, color: 'var(--dust)' }}>{label}</div>
+      <div style={{ ...O, fontSize: 26, color: 'var(--sun)', margin: '4px 0 2px' }}>{value ?? 0}</div>
+      {sub && <div style={{ fontSize: 11, color: 'var(--dust)' }}>{sub}</div>}
+    </div>
+  )
+}
+function Panel({ title, children }: { title: string; children: any }) {
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 18px', marginBottom: 12 }}>
+      <div style={{ ...O, fontSize: 11, letterSpacing: 2, color: 'var(--accent)', marginBottom: 12 }}>{title}</div>
+      {children}
+    </div>
+  )
+}
+function Row({ l, v }: { l: string; v: number }) {
+  return <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--sub)' }}><span style={{ textTransform: 'capitalize' }}>{l}</span><span style={{ color: 'var(--sun)' }}>{v}</span></div>
+}
+function Empty() { return <div style={{ fontSize: 12, color: 'var(--dust)' }}>Nothing yet.</div> }
